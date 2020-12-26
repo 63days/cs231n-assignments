@@ -80,7 +80,9 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        # X:[N, D], W1[D, H] b1[H] W2[H, C] b2[C]
+        hidden_scores = np.maximum(X.dot(W1) + b1, 0)
+        scores = hidden_scores.dot(W2) + b2
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -97,9 +99,13 @@ class TwoLayerNet(object):
         # classifier loss.                                                          #
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        num_train = X.shape[0]
+        probs = np.exp(scores) / np.sum(np.exp(scores), axis=1).reshape(-1, 1)
+        loss = -np.sum(np.log(probs[np.arange(num_train), y]))
+        loss /= num_train
 
-        pass
-
+        loss += reg * (np.sum(W1*W1) + np.sum(W2*W2))
+        
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         # Backward pass: compute gradients
@@ -110,11 +116,23 @@ class TwoLayerNet(object):
         # grads['W1'] should store the gradient on W1, and be a matrix of same size #
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        dscores = np.array(probs)
+        dscores[np.arange(num_train), y] -= 1
+        dscores /= num_train
 
-        pass
+        db2 = np.sum(dscores, axis=0)
+        dW2 = hidden_scores.T.dot(dscores)
 
+        dhidden_scores = dscores.dot(W2.T)
+        #dhidden_scores = np.where(hidden_scores > 0, dhidden_scores, 0)
+        dhidden_scores[hidden_scores == 0] = 0
+        db1 = np.sum(dhidden_scores, axis=0)
+        dW1 = X.T.dot(dhidden_scores)
+
+        dW1 += 2 * reg * W1
+        dW2 += 2 * reg * W2
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+        grads = {'W1': dW1, 'b1': db1, 'W2': dW2, 'b2': db2}
         return loss, grads
 
     def train(self, X, y, X_val, y_val,
@@ -156,7 +174,8 @@ class TwoLayerNet(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            indices = np.random.choice(num_train, batch_size)
+            X_batch, y_batch = X[indices], y[indices]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -172,7 +191,15 @@ class TwoLayerNet(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            W1, b1 = self.params['W1'], self.params['b1']
+            W2, b2 = self.params['W2'], self.params['b2']
+            dW1, db1 = grads['W1'], grads['b1']
+            dW2, db2 = grads['W2'], grads['b2']
+
+            W1 -= learning_rate * dW1
+            b1 -= learning_rate * db1
+            W2 -= learning_rate * dW2
+            b2 -= learning_rate * db2
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -218,7 +245,15 @@ class TwoLayerNet(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        W1, b1 = self.params['W1'], self.params['b1']
+        W2, b2 = self.params['W2'], self.params['b2']
+
+        hidden_scores = X.dot(W1) + b1
+        hidden_scores = np.maximum(hidden_scores, 0)
+
+        scores = hidden_scores.dot(W2) + b2
+
+        y_pred = np.argmax(scores, axis=1)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
